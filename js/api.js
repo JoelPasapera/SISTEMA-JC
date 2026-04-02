@@ -12,7 +12,7 @@ const API = (() => {
 
     // ─── Configuración ────────────────────────────────────
     // Cambiar esta URL por la de tu servidor en PythonAnywhere
-    const BASE_URL = 'https://TU_USUARIO.pythonanywhere.com';
+    const BASE_URL = 'https://c48484518.pythonanywhere.com/';
 
     const ENDPOINTS = {
         classrooms:  '/api/classrooms',
