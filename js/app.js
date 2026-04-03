@@ -248,53 +248,73 @@ const App = (() => {
         if (!date) return;
 
         state.isLoadingAttendance = true;
+        showToast(`Cargando asistencia del ${formatDate(date)}...`, 'info');
 
         try {
-            const result = await API.getAttendanceForDate(
-                state.currentClassroom.classroom, date
-            );
+            const classroomName = state.currentClassroom.classroom;
+            const url = `${classroomName}/${date}`;
 
-            if (result.success && result.data && result.data.found && result.data.records) {
-                const records = result.data.records;
+            const result = await API.getAttendanceForDate(classroomName, date);
+
+            if (!result || !result.success) {
+                showToast('El servidor no devolvió datos válidos', 'warning');
+                return;
+            }
+
+            const data = result.data;
+
+            // Actualizar título si viene
+            if (data.sheet_title) {
+                dom.tableTitle.textContent = data.sheet_title;
+            }
+
+            if (data.found && data.records) {
+                const records = data.records;
+                const recordKeys = Object.keys(records);
                 let applied = 0;
+                let notFound = 0;
 
-                // Actualizar titulo con el de la hoja del mes
-                if (result.data.sheet_title) {
-                    dom.tableTitle.textContent = result.data.sheet_title;
-                }
-
-                // Aplicar los valores A/T/F existentes a la tabla
                 state.attendanceRecords.forEach((record, index) => {
-                    const existingStatus = records[record.studentName];
                     const row = document.getElementById(`row-${index}`);
                     if (!row) return;
 
-                    if (existingStatus && (existingStatus === 'A' || existingStatus === 'T' || existingStatus === 'F')) {
+                    // Buscar el estudiante en los registros del backend
+                    const studentName = record.studentName;
+                    let existingStatus = records[studentName] || null;
+
+                    // Si no se encontró, intentar búsqueda flexible (ignorar mayúsculas/espacios extra)
+                    if (!existingStatus) {
+                        const nameLower = studentName.toLowerCase().trim();
+                        for (const [key, val] of Object.entries(records)) {
+                            if (key.toLowerCase().trim() === nameLower) {
+                                existingStatus = val;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (existingStatus && ['A', 'T', 'F'].includes(existingStatus)) {
                         setStudentStatus(index, existingStatus, row);
                         applied++;
                     } else {
-                        // Sin dato → dejar en A por defecto
                         setStudentStatus(index, 'A', row);
+                        notFound++;
                     }
                 });
 
-                if (applied > 0) {
-                    showToast(`Asistencia cargada: ${applied} registros del ${formatDate(date)}`, 'info');
-                }
+                showToast(`${data.month} día ${data.day}: ${applied} registros cargados`, 'success');
+
             } else {
-                // No hay datos para esta fecha, resetear todo a A
+                // No hay datos para esta fecha
                 state.attendanceRecords.forEach((record, index) => {
                     const row = document.getElementById(`row-${index}`);
                     if (row) setStudentStatus(index, 'A', row);
                 });
-
-                if (result.data && result.data.sheet_title) {
-                    dom.tableTitle.textContent = result.data.sheet_title;
-                }
+                showToast(`Sin registros para ${formatDate(date)} (${data.month})`, 'warning');
             }
 
         } catch (error) {
-            console.warn('No se pudo cargar asistencia existente:', error.message);
+            showToast(`Error cargando asistencia: ${error.message}`, 'error');
         } finally {
             state.isLoadingAttendance = false;
             updateStats();
