@@ -258,6 +258,11 @@ const App = (() => {
                 const records = result.data.records;
                 let applied = 0;
 
+                // Actualizar titulo con el de la hoja del mes
+                if (result.data.sheet_title) {
+                    dom.tableTitle.textContent = result.data.sheet_title;
+                }
+
                 // Aplicar los valores A/T/F existentes a la tabla
                 state.attendanceRecords.forEach((record, index) => {
                     const existingStatus = records[record.studentName];
@@ -282,6 +287,10 @@ const App = (() => {
                     const row = document.getElementById(`row-${index}`);
                     if (row) setStudentStatus(index, 'A', row);
                 });
+
+                if (result.data && result.data.sheet_title) {
+                    dom.tableTitle.textContent = result.data.sheet_title;
+                }
             }
 
         } catch (error) {
