@@ -163,12 +163,74 @@
 
         <!-- ─── SECCIÓN: NOTAS ─── -->
         <section id="section-grades" class="content-section">
-            <div class="coming-soon">
+
+            <!-- Selector de salón -->
+            <div class="classroom-selector" id="grades-classroom-selector">
+                <h2 class="selector-title">Registro Auxiliar de Notas</h2>
+                <div class="classroom-tabs" id="grades-classroom-tabs">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Selector de curso -->
+            <div class="date-picker-wrapper" id="grades-course-wrapper" style="display:none;">
+                <label class="date-label" for="grades-course-select">Curso:</label>
+                <select id="grades-course-select" class="date-input" style="min-width:200px;padding:.5rem .75rem;">
+                    <option value="">Seleccionar curso...</option>
+                </select>
+            </div>
+
+            <!-- Info del curso -->
+            <div id="grades-info" style="display:none;margin-bottom:1rem;">
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:.82rem;color:var(--ink-muted);">
+                    <span id="grades-info-salon" style="background:var(--teal-soft);color:var(--teal);padding:.25rem .65rem;border-radius:100px;font-weight:500;"></span>
+                    <span id="grades-info-curso" style="background:var(--amber-soft);color:var(--amber);padding:.25rem .65rem;border-radius:100px;font-weight:500;"></span>
+                    <span id="grades-info-periodo" style="background:var(--surface-2);padding:.25rem .65rem;border-radius:100px;"></span>
+                    <span id="grades-info-profesor" style="background:var(--surface-2);padding:.25rem .65rem;border-radius:100px;"></span>
+                </div>
+            </div>
+
+            <!-- Tabla de notas -->
+            <div class="attendance-container" id="grades-container" style="display:none;">
+                <div class="table-header">
+                    <div class="table-info">
+                        <h3 class="table-title" id="grades-title"></h3>
+                        <p class="table-subtitle" id="grades-subtitle"></p>
+                    </div>
+                </div>
+
+                <div class="table-scroll" style="max-height:70vh;overflow:auto;">
+                    <table class="attendance-table" id="grades-table" style="font-size:.8rem;">
+                        <thead id="grades-thead">
+                            <!-- Se llena dinámicamente -->
+                        </thead>
+                        <tbody id="grades-body">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="save-section">
+                    <button class="save-btn" id="btn-save-grades" disabled>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Guardar Notas</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Estado vacío -->
+            <div class="empty-state" id="grades-empty" style="display:none;">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                    <path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
                 </svg>
-                <h3>Módulo de Notas</h3>
-                <p>Este módulo estará disponible próximamente.</p>
+                <p>Configura los IDs de archivos de notas en el servidor.</p>
+            </div>
+
+            <!-- Loading -->
+            <div id="grades-loading" style="display:none;text-align:center;padding:3rem;color:var(--ink-muted);">
+                <p>Cargando notas...</p>
             </div>
         </section>
     </main>
