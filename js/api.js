@@ -69,5 +69,34 @@ const API = (() => {
         return await handleResponse(r);
     }
 
-    return { checkConnection, getClassrooms, getClassroomStudents, getAttendanceForDate, saveAttendance };
+    async function getGradeBooks() {
+        const r = await fetchWithTimeout(`${BASE_URL}/api/grades/books`);
+        return await handleResponse(r);
+    }
+
+    async function getGrades(fileId, sheetName) {
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`
+        );
+        return await handleResponse(r);
+    }
+
+    async function saveGrades(fileId, sheetName, updates) {
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates }),
+            },
+            60000
+        );
+        return await handleResponse(r);
+    }
+
+    return {
+        checkConnection, getClassrooms, getClassroomStudents,
+        getAttendanceForDate, saveAttendance,
+        getGradeBooks, getGrades, saveGrades
+    };
 })();
