@@ -46,74 +46,83 @@ const Grades = (() => {
         dom.courseSelect.addEventListener('change', onCourseChange);
         dom.btnSave.addEventListener('click', handleSave);
 
-        // Detectar token en URL
+        // Detectar token en URL → abrir directamente ese curso
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         if (token) {
             state.professorToken = token;
-            loadProfessorCourses(token);
+            loadCourseByToken(token);
         } else {
             loadBooks();
         }
     }
 
-    // ─── MODO PROFESOR (con token) ────────────────────────
-    async function loadProfessorCourses(token) {
+    // ─── MODO DIRECTO (1 token = 1 curso) ─────────────────
+    async function loadCourseByToken(token) {
         dom.loading.style.display = 'block';
 
         try {
-            const resp = await fetch(
-                `${getBaseUrl()}/api/professors/token/${token}`
-            );
+            const resp = await fetch(`${getBaseUrl()}/api/course/token/${token}`);
             const result = await resp.json();
 
             if (!result.success) {
                 dom.loading.style.display = 'none';
                 dom.empty.style.display = 'block';
                 dom.empty.querySelector('p').textContent =
-                    'Token inválido. Contacta al administrador.';
+                    result.error || 'Token inválido. Contacta al administrador.';
                 return;
             }
 
-            state.professorName = result.professor;
-            state.professorCourses = result.courses;
+            const course = result.course;
 
-            // Agrupar cursos por salón
-            const byClassroom = {};
-            result.courses.forEach(c => {
-                if (!byClassroom[c.classroom]) {
-                    byClassroom[c.classroom] = {
-                        classroom: c.classroom,
-                        file_id: c.file_id,
-                        courses: [],
-                    };
-                }
-                byClassroom[c.classroom].courses.push(c);
-            });
+            // Ocultar selectors — este token da acceso directo a un solo curso
+            document.getElementById('grades-classroom-selector').style.display = 'none';
+            dom.courseWrapper.style.display = 'none';
 
-            state.books = Object.values(byClassroom).map(b => ({
-                classroom: b.classroom,
-                file_id: b.file_id,
-                courses: b.courses.map(c => ({
-                    sheet_name: c.sheet_name,
-                    course_name: c.course_name,
-                })),
-                course_count: b.courses.length,
-            }));
+            // Guardar datos para carga
+            state.currentBook = { file_id: course.file_id, classroom: course.classroom };
+            state.currentCourse = course.sheet_name;
 
-            // Mostrar nombre del profesor
+            // Mostrar info
             const selectorTitle = document.querySelector('#grades-classroom-selector .selector-title');
             if (selectorTitle) {
-                selectorTitle.textContent = `Bienvenido, Prof. ${result.professor}`;
+                selectorTitle.textContent = `${course.classroom} — ${course.course_name}`;
+                selectorTitle.style.display = 'block';
+                document.getElementById('grades-classroom-selector').style.display = 'block';
+                dom.classroomTabs.style.display = 'none';
             }
 
-            renderClassroomTabs();
-            dom.loading.style.display = 'none';
+            // Cargar las notas directamente
+            await loadGradesDirect(course.file_id, course.sheet_name, token);
 
         } catch (error) {
             dom.loading.style.display = 'none';
             dom.empty.style.display = 'block';
             dom.empty.querySelector('p').textContent = `Error: ${error.message}`;
+        }
+    }
+
+    async function loadGradesDirect(fileId, sheetName, token) {
+        try {
+            let url = `${getBaseUrl()}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`;
+            if (token) url += `?token=${token}`;
+
+            const resp = await fetch(url);
+            const result = await resp.json();
+
+            if (result.success && result.data) {
+                state.currentData = result.data;
+                renderGradesInfo();
+                renderGradesTable();
+                dom.container.style.display = 'block';
+                dom.btnSave.disabled = true;
+            } else {
+                showToast(result.error || 'No tienes acceso a este curso', 'error');
+            }
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            dom.loading.style.display = 'none';
         }
     }
 
