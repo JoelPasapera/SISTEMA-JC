@@ -1,6 +1,11 @@
 /**
- * GRADES.JS — Módulo de Notas (Registro Auxiliar)
- * Maneja la interfaz del registro de notas.
+ * GRADES.JS — Módulo de Notas con acceso por profesor
+ *
+ * Modos de acceso:
+ * 1. Admin (sin token): ve todos los salones y cursos
+ * 2. Profesor (con token en URL): ve SOLO sus cursos asignados
+ *
+ * URL directa para profesor: tudominio.com/?token=abc123&tab=grades
  */
 
 const Grades = (() => {
@@ -12,7 +17,10 @@ const Grades = (() => {
         currentCourse: null,
         currentData: null,
         hasChanges: false,
-        changes: {},  // {studentName: {key: value}}
+        changes: {},
+        professorToken: null,
+        professorName: null,
+        professorCourses: null,
     };
 
     const dom = {};
@@ -38,10 +46,84 @@ const Grades = (() => {
         dom.courseSelect.addEventListener('change', onCourseChange);
         dom.btnSave.addEventListener('click', handleSave);
 
-        loadBooks();
+        // Detectar token en URL
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        if (token) {
+            state.professorToken = token;
+            loadProfessorCourses(token);
+        } else {
+            loadBooks();
+        }
     }
 
-    // ─── CARGAR LIBROS ────────────────────────────────────
+    // ─── MODO PROFESOR (con token) ────────────────────────
+    async function loadProfessorCourses(token) {
+        dom.loading.style.display = 'block';
+
+        try {
+            const resp = await fetch(
+                `${getBaseUrl()}/api/professors/token/${token}`
+            );
+            const result = await resp.json();
+
+            if (!result.success) {
+                dom.loading.style.display = 'none';
+                dom.empty.style.display = 'block';
+                dom.empty.querySelector('p').textContent =
+                    'Token inválido. Contacta al administrador.';
+                return;
+            }
+
+            state.professorName = result.professor;
+            state.professorCourses = result.courses;
+
+            // Agrupar cursos por salón
+            const byClassroom = {};
+            result.courses.forEach(c => {
+                if (!byClassroom[c.classroom]) {
+                    byClassroom[c.classroom] = {
+                        classroom: c.classroom,
+                        file_id: c.file_id,
+                        courses: [],
+                    };
+                }
+                byClassroom[c.classroom].courses.push(c);
+            });
+
+            state.books = Object.values(byClassroom).map(b => ({
+                classroom: b.classroom,
+                file_id: b.file_id,
+                courses: b.courses.map(c => ({
+                    sheet_name: c.sheet_name,
+                    course_name: c.course_name,
+                })),
+                course_count: b.courses.length,
+            }));
+
+            // Mostrar nombre del profesor
+            const selectorTitle = document.querySelector('#grades-classroom-selector .selector-title');
+            if (selectorTitle) {
+                selectorTitle.textContent = `Bienvenido, Prof. ${result.professor}`;
+            }
+
+            renderClassroomTabs();
+            dom.loading.style.display = 'none';
+
+        } catch (error) {
+            dom.loading.style.display = 'none';
+            dom.empty.style.display = 'block';
+            dom.empty.querySelector('p').textContent = `Error: ${error.message}`;
+        }
+    }
+
+    function getBaseUrl() {
+        return typeof API !== 'undefined' && API._BASE_URL
+            ? API._BASE_URL
+            : 'https://c48484518.pythonanywhere.com';
+    }
+
+    // ─── MODO ADMIN (sin token) ───────────────────────────
     async function loadBooks() {
         dom.loading.style.display = 'block';
         dom.empty.style.display = 'none';
@@ -69,15 +151,18 @@ const Grades = (() => {
         state.books.forEach((book, i) => {
             const btn = document.createElement('button');
             btn.className = 'classroom-tab' + (i === 0 ? ' active' : '');
-            btn.dataset.fileId = book.file_id;
+            btn.dataset.idx = i;
             btn.innerHTML = `${esc(book.classroom)} <span class="tab-count">${book.course_count}</span>`;
-            btn.addEventListener('click', () => selectBook(book));
+            btn.addEventListener('click', () => selectBook(i));
             dom.classroomTabs.appendChild(btn);
         });
-        selectBook(state.books[0]);
+        selectBook(0);
     }
 
-    function selectBook(book) {
+    function selectBook(idx) {
+        const book = state.books[idx];
+        if (!book) return;
+
         state.currentBook = book;
         state.currentCourse = null;
         state.currentData = null;
@@ -85,10 +170,9 @@ const Grades = (() => {
         state.changes = {};
 
         document.querySelectorAll('#grades-classroom-tabs .classroom-tab').forEach(t => {
-            t.classList.toggle('active', t.dataset.fileId === book.file_id);
+            t.classList.toggle('active', parseInt(t.dataset.idx) === idx);
         });
 
-        // Llenar dropdown de cursos
         dom.courseSelect.innerHTML = '<option value="">Seleccionar curso...</option>';
         book.courses.forEach(c => {
             const opt = document.createElement('option');
@@ -115,7 +199,13 @@ const Grades = (() => {
         dom.loading.style.display = 'block';
 
         try {
-            const result = await API.getGrades(state.currentBook.file_id, sheetName);
+            let url = `${getBaseUrl()}/api/grades/${encodeURIComponent(state.currentBook.file_id)}/${encodeURIComponent(sheetName)}`;
+            if (state.professorToken) {
+                url += `?token=${state.professorToken}`;
+            }
+
+            const resp = await fetch(url);
+            const result = await resp.json();
 
             if (result.success && result.data) {
                 state.currentData = result.data;
@@ -123,6 +213,8 @@ const Grades = (() => {
                 renderGradesTable();
                 dom.container.style.display = 'block';
                 dom.btnSave.disabled = true;
+            } else {
+                showToast(result.error || 'Error cargando notas', 'error');
             }
         } catch (error) {
             showToast(`Error: ${error.message}`, 'error');
@@ -140,7 +232,7 @@ const Grades = (() => {
         dom.infoProfesor.textContent = d.profesor ? `Prof: ${d.profesor}` : 'Sin profesor';
         dom.info.style.display = 'block';
 
-        dom.title.textContent = d.titulo || `${d.salon} — ${d.curso}`;
+        dom.title.textContent = `${d.salon} — ${d.curso}`;
         dom.subtitle.textContent = `${d.student_count} estudiantes · ${d.periodo}`;
     }
 
@@ -149,7 +241,6 @@ const Grades = (() => {
         const d = state.currentData;
         if (!d) return;
 
-        // Build grouped headers
         const columns = d.columns;
         const groups = [];
         let lastGroup = null;
@@ -164,40 +255,35 @@ const Grades = (() => {
         });
 
         // Row 1: Group headers
-        let headerRow1 = '<tr><th rowspan="2" style="position:sticky;left:0;z-index:10;background:var(--surface);min-width:35px;">#</th>';
-        headerRow1 += '<th rowspan="2" style="position:sticky;left:35px;z-index:10;background:var(--surface);min-width:180px;">Estudiante</th>';
+        let h1 = '<tr><th rowspan="2" style="position:sticky;left:0;z-index:10;background:var(--surface);min-width:35px;">#</th>';
+        h1 += '<th rowspan="2" style="position:sticky;left:35px;z-index:10;background:var(--surface);min-width:180px;">Estudiante</th>';
 
-        const groupColors = {
+        const gColors = {
             'Promedio': 'var(--teal-soft)',
             'Tareas': '#e8f0fe',
-            'Trabajo en Clase': '#fef3e2',
-            'Rev. Libro': '#fef3e2',
-            'Prácticas': '#e4f5ed',
-            'Orales': '#f3e8fd',
-            'Promedio Final': 'var(--teal-soft)',
+            'Revisión en Clase': '#fef3e2',
             'Exámenes': 'var(--red-soft)',
         };
 
         groups.forEach(g => {
-            const bg = groupColors[g.name] || 'var(--surface-2)';
-            headerRow1 += `<th colspan="${g.cols.length}" style="text-align:center;background:${bg};font-size:.7rem;padding:.4rem .3rem;white-space:nowrap;">${esc(g.name)}</th>`;
+            const bg = gColors[g.name] || 'var(--surface-2)';
+            h1 += `<th colspan="${g.cols.length}" style="text-align:center;background:${bg};font-size:.7rem;padding:.4rem .3rem;white-space:nowrap;">${esc(g.name)}</th>`;
         });
-        headerRow1 += '</tr>';
+        h1 += '</tr>';
 
-        // Row 2: Column sub-headers
-        let headerRow2 = '<tr>';
+        // Row 2: Sub-headers
+        let h2 = '<tr>';
         groups.forEach(g => {
-            const bg = groupColors[g.name] || 'var(--surface-2)';
+            const bg = gColors[g.name] || 'var(--surface-2)';
             g.cols.forEach(col => {
-                const style = `background:${bg};font-size:.65rem;padding:.35rem .25rem;text-align:center;min-width:42px;white-space:nowrap;`;
-                headerRow2 += `<th style="${style}">${esc(col.label)}</th>`;
+                h2 += `<th style="background:${bg};font-size:.65rem;padding:.35rem .25rem;text-align:center;min-width:42px;white-space:nowrap;">${esc(col.label)}</th>`;
             });
         });
-        headerRow2 += '</tr>';
+        h2 += '</tr>';
 
-        dom.thead.innerHTML = headerRow1 + headerRow2;
+        dom.thead.innerHTML = h1 + h2;
 
-        // Body rows
+        // Body
         dom.tbody.innerHTML = '';
         d.students.forEach((student, i) => {
             const tr = document.createElement('tr');
@@ -210,7 +296,7 @@ const Grades = (() => {
 
                 if (col.editable) {
                     html += `<td style="padding:2px;text-align:center;">
-                        <input type="number" step="0.1" min="0" max="20"
+                        <input type="number" step="1" min="0" max="20"
                             class="grade-input"
                             data-student="${esc(student.name)}"
                             data-key="${col.key}"
@@ -232,41 +318,75 @@ const Grades = (() => {
             dom.tbody.appendChild(tr);
         });
 
-        // Bind input events
+        // Input events
         dom.tbody.querySelectorAll('.grade-input').forEach(input => {
             input.addEventListener('input', onGradeInput);
+            input.addEventListener('blur', onGradeBlur);
             input.addEventListener('focus', function() {
                 this.select();
                 this.style.borderColor = 'var(--teal)';
                 this.style.boxShadow = '0 0 0 2px rgba(13,115,119,.15)';
-            });
-            input.addEventListener('blur', function() {
-                this.style.borderColor = 'var(--border-light)';
-                this.style.boxShadow = 'none';
             });
         });
     }
 
     function onGradeInput(e) {
         const input = e.target;
+        state.hasChanges = true;
+        dom.btnSave.disabled = false;
+        input.style.background = '#fef9e7';
+    }
+
+    function onGradeBlur(e) {
+        const input = e.target;
+        input.style.borderColor = 'var(--border-light)';
+        input.style.boxShadow = 'none';
+
+        let val = input.value.trim();
+
+        if (val === '') {
+            // Vacío es válido (borrar nota)
+            registerChange(input, '');
+            return;
+        }
+
+        let num = parseInt(val, 10);
+
+        // Validar: entero, 0-20
+        if (isNaN(num)) {
+            input.value = '';
+            input.style.background = 'var(--white)';
+            return;
+        }
+
+        if (num < 0) num = 0;
+        if (num > 20) num = 20;
+
+        input.value = num;
+        registerChange(input, num);
+    }
+
+    function registerChange(input, value) {
         const studentName = input.dataset.student;
         const key = input.dataset.key;
-        const value = input.value;
 
         if (!state.changes[studentName]) {
             state.changes[studentName] = {};
         }
-        state.changes[studentName][key] = value;
-        state.hasChanges = true;
-        dom.btnSave.disabled = false;
-
-        // Visual feedback
-        input.style.background = '#fef9e7';
+        state.changes[studentName][key] = value === '' ? null : value;
     }
 
     // ─── GUARDAR ──────────────────────────────────────────
     async function handleSave() {
         if (!state.hasChanges || !state.currentBook || !state.currentCourse) return;
+
+        // Capturar todos los cambios al momento de guardar
+        dom.tbody.querySelectorAll('.grade-input').forEach(input => {
+            if (input.style.background === 'rgb(254, 249, 231)') {
+                // Solo registrar los que fueron modificados
+                registerChange(input, input.value === '' ? null : parseInt(input.value, 10));
+            }
+        });
 
         dom.btnSave.querySelector('span').textContent = 'Guardando...';
         dom.btnSave.disabled = true;
@@ -277,24 +397,32 @@ const Grades = (() => {
                 grades: grades,
             }));
 
-            const result = await API.saveGrades(
-                state.currentBook.file_id,
-                state.currentCourse,
-                updates
-            );
+            let url = `${getBaseUrl()}/api/grades/${encodeURIComponent(state.currentBook.file_id)}/${encodeURIComponent(state.currentCourse)}`;
+            if (state.professorToken) {
+                url += `?token=${state.professorToken}`;
+            }
+
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates }),
+            });
+            const result = await resp.json();
 
             if (result.success) {
                 showToast(`Notas guardadas: ${result.result.students_updated} estudiantes`, 'success');
+                if (result.result.errors && result.result.errors.length > 0) {
+                    showToast(`Advertencias: ${result.result.errors.join(', ')}`, 'warning');
+                }
                 state.hasChanges = false;
                 state.changes = {};
-
-                // Reset visual feedback
                 dom.tbody.querySelectorAll('.grade-input').forEach(input => {
                     input.style.background = 'var(--white)';
                 });
-
-                // Reload to get computed values
                 await onCourseChange();
+            } else {
+                showToast(result.error || 'Error al guardar', 'error');
+                dom.btnSave.disabled = false;
             }
         } catch (error) {
             showToast(`Error: ${error.message}`, 'error');
@@ -313,22 +441,17 @@ const Grades = (() => {
     }
 
     function showToast(message, type) {
-        // Reutilizar el toast del módulo principal si existe
-        if (typeof App !== 'undefined' && App.state) {
-            const container = document.getElementById('toast-container');
-            if (container) {
-                const toast = document.createElement('div');
-                toast.className = `toast toast-${type}`;
-                toast.innerHTML = `<span>${esc(message)}</span>`;
-                container.appendChild(toast);
-                setTimeout(() => { toast.classList.add('removing'); setTimeout(() => toast.remove(), 300); }, 5000);
-                return;
-            }
+        const container = document.getElementById('toast-container');
+        if (container) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<span>${esc(message)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('removing'); setTimeout(() => toast.remove(), 300); }, 5000);
         }
-        alert(message);
     }
 
-    // Auto-init cuando la pestaña de notas se activa
+    // Auto-init
     let initialized = false;
     const observer = new MutationObserver(() => {
         const section = document.getElementById('section-grades');
@@ -342,6 +465,13 @@ const Grades = (() => {
         const section = document.getElementById('section-grades');
         if (section) {
             observer.observe(section, { attributes: true, attributeFilter: ['class'] });
+
+            // Si hay token en URL, activar pestaña de notas automáticamente
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('token') && params.get('tab') === 'grades') {
+                const gradesTab = document.querySelector('[data-section="grades"]');
+                if (gradesTab) gradesTab.click();
+            }
         }
     });
 
