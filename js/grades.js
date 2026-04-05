@@ -333,10 +333,10 @@ const Grades = (() => {
                     </td>`;
                 } else {
                     const isAvg = col.key.includes('promedio') || col.key.includes('prom');
-                    const style = isAvg
-                        ? 'font-weight:600;color:var(--teal);background:var(--teal-soft);'
-                        : 'color:var(--ink-muted);background:var(--surface);';
-                    html += `<td style="text-align:center;font-size:.78rem;padding:4px 3px;${style}">${displayVal}</td>`;
+                    const bg = isAvg
+                        ? 'background:var(--teal-soft);color:var(--teal);font-weight:600;'
+                        : 'background:var(--surface);color:var(--ink-muted);';
+                    html += `<td style="text-align:center;font-size:.78rem;padding:4px 3px;min-width:42px;border:1px solid var(--border-light);${bg}">${displayVal || '—'}</td>`;
                 }
             });
 
