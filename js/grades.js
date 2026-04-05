@@ -61,6 +61,21 @@ const Grades = (() => {
     async function loadCourseByToken(token) {
         dom.loading.style.display = 'block';
 
+        // ─── Ocultar TODO excepto Notas ───────────────────
+        const header = document.querySelector('.header');
+        const nav = document.querySelector('.section-nav');
+        const sectionAttendance = document.getElementById('section-attendance');
+        if (header) header.style.display = 'none';
+        if (nav) nav.style.display = 'none';
+        if (sectionAttendance) sectionAttendance.style.display = 'none';
+
+        // Activar sección de notas
+        const sectionGrades = document.getElementById('section-grades');
+        if (sectionGrades) {
+            sectionGrades.classList.add('active');
+            sectionGrades.style.display = 'block';
+        }
+
         try {
             const resp = await fetch(`${getBaseUrl()}/api/course/token/${token}`);
             const result = await resp.json();
@@ -75,22 +90,24 @@ const Grades = (() => {
 
             const course = result.course;
 
-            // Ocultar selectors — este token da acceso directo a un solo curso
-            document.getElementById('grades-classroom-selector').style.display = 'none';
+            // Ocultar selectores y tabs
             dom.courseWrapper.style.display = 'none';
+            dom.classroomTabs.style.display = 'none';
+
+            // Mostrar título del curso como encabezado
+            const selectorTitle = document.querySelector('#grades-classroom-selector .selector-title');
+            if (selectorTitle) {
+                selectorTitle.innerHTML = `
+                    <span style="font-size:.85rem;color:var(--ink-muted);font-family:var(--font-body);font-weight:400;display:block;margin-bottom:.25rem;">
+                        Registro Auxiliar de Notas
+                    </span>
+                    ${course.classroom} — ${course.course_name}
+                `;
+            }
 
             // Guardar datos para carga
             state.currentBook = { file_id: course.file_id, classroom: course.classroom };
             state.currentCourse = course.sheet_name;
-
-            // Mostrar info
-            const selectorTitle = document.querySelector('#grades-classroom-selector .selector-title');
-            if (selectorTitle) {
-                selectorTitle.textContent = `${course.classroom} — ${course.course_name}`;
-                selectorTitle.style.display = 'block';
-                document.getElementById('grades-classroom-selector').style.display = 'block';
-                dom.classroomTabs.style.display = 'none';
-            }
 
             // Cargar las notas directamente
             await loadGradesDirect(course.file_id, course.sheet_name, token);
@@ -475,9 +492,16 @@ const Grades = (() => {
         if (section) {
             observer.observe(section, { attributes: true, attributeFilter: ['class'] });
 
-            // Si hay token en URL, activar pestaña de notas automáticamente
             const params = new URLSearchParams(window.location.search);
-            if (params.get('token') && params.get('tab') === 'grades') {
+
+            if (params.get('token')) {
+                // Token presente → iniciar inmediatamente, ocultar loading screen
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) loadingScreen.classList.add('hidden');
+
+                initialized = true;
+                init();
+            } else if (params.get('tab') === 'grades') {
                 const gradesTab = document.querySelector('[data-section="grades"]');
                 if (gradesTab) gradesTab.click();
             }
