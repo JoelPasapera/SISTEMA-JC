@@ -320,27 +320,16 @@ const Grades = (() => {
                 const val = student.grades[col.key];
                 const displayVal = val !== null && val !== undefined ? val : '';
 
-                if (col.editable) {
-                    html += `<td style="padding:2px;text-align:center;">
-                        <input type="number" step="1" min="0" max="20"
-                            class="grade-input"
-                            data-student="${esc(student.name)}"
-                            data-key="${col.key}"
-                            value="${displayVal}"
-                            style="width:42px;padding:3px 2px;border:1px solid var(--border-light);
-                                   border-radius:4px;text-align:center;font-size:.78rem;
-                                   font-family:var(--font-body);background:var(--white);">
-                    </td>`;
-                } else {
-                    html += `<td style="padding:2px;text-align:center;">
-                        <input type="number" disabled readonly
-                            value="${displayVal}"
-                            style="width:42px;padding:3px 2px;border:1px solid var(--border-light);
-                                   border-radius:4px;text-align:center;font-size:.78rem;
-                                   font-family:var(--font-body);background:var(--surface);
-                                   color:var(--ink);cursor:default;">
-                    </td>`;
-                }
+                html += `<td style="padding:2px;text-align:center;">
+                    <input type="number" step="1" min="0" max="20"
+                        class="grade-input"
+                        data-student="${esc(student.name)}"
+                        data-key="${col.key}"
+                        value="${displayVal}"
+                        style="width:42px;padding:3px 2px;border:1px solid var(--border-light);
+                               border-radius:4px;text-align:center;font-size:.78rem;
+                               font-family:var(--font-body);background:var(--white);">
+                </td>`;
             });
 
             tr.innerHTML = html;
