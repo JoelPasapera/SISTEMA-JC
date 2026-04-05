@@ -1,5 +1,6 @@
 /**
- * API.JS — Comunicacion con el backend FastAPI/Flask
+ * API.JS — Comunicación con el backend
+ * Incluye autenticación en todas las peticiones.
  */
 
 const API = (() => {
@@ -8,6 +9,29 @@ const API = (() => {
     const BASE_URL = 'https://c48484518.pythonanywhere.com';
     const DEFAULT_TIMEOUT = 30000;
 
+    // ─── TOKEN DE SESIÓN ──────────────────────────────────
+    function getToken() {
+        return sessionStorage.getItem('auth_token') || '';
+    }
+
+    function setToken(token) {
+        sessionStorage.setItem('auth_token', token);
+    }
+
+    function clearToken() {
+        sessionStorage.removeItem('auth_token');
+    }
+
+    function getAuthHeaders() {
+        const token = getToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    }
+
+    // ─── UTILIDADES HTTP ──────────────────────────────────
     async function fetchWithTimeout(url, options = {}, timeout = DEFAULT_TIMEOUT) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -23,14 +47,65 @@ const API = (() => {
     }
 
     async function handleResponse(response) {
-        if (!response.ok) {
-            let msg = `Error ${response.status}`;
-            try { const d = await response.json(); msg = d.detail || d.error || msg; } catch {}
-            throw new Error(msg);
+        const data = await response.json();
+
+        // Si el servidor dice que no está autorizado, redirigir al login
+        if (response.status === 401) {
+            const code = data.code || '';
+            if (code === 'AUTH_REQUIRED' || code === 'SESSION_EXPIRED') {
+                clearToken();
+                if (typeof Auth !== 'undefined' && Auth.showLogin) {
+                    Auth.showLogin(data.error || 'Sesión expirada');
+                }
+            }
+            throw new Error(data.error || 'No autorizado');
         }
-        return await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || data.error || `Error ${response.status}`);
+        }
+        return data;
     }
 
+    // ─── AUTENTICACIÓN ────────────────────────────────────
+    async function login(username, password) {
+        const r = await fetchWithTimeout(`${BASE_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        const data = await r.json();
+        if (data.success && data.token) {
+            setToken(data.token);
+        }
+        return data;
+    }
+
+    async function logout() {
+        try {
+            await fetchWithTimeout(`${BASE_URL}/api/auth/logout`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+            });
+        } catch {}
+        clearToken();
+    }
+
+    async function verifySession() {
+        const token = getToken();
+        if (!token) return false;
+        try {
+            const r = await fetchWithTimeout(`${BASE_URL}/api/auth/verify`, {
+                headers: getAuthHeaders(),
+            }, 10000);
+            const data = await r.json();
+            return data.valid === true;
+        } catch {
+            return false;
+        }
+    }
+
+    // ─── CONEXIÓN ─────────────────────────────────────────
     async function checkConnection() {
         try {
             const r = await fetchWithTimeout(`${BASE_URL}/`, { method: 'GET' }, 10000);
@@ -39,44 +114,47 @@ const API = (() => {
         } catch { return false; }
     }
 
+    // ─── ASISTENCIA ───────────────────────────────────────
     async function getClassrooms() {
-        const r = await fetchWithTimeout(`${BASE_URL}/api/classrooms`);
+        const r = await fetchWithTimeout(`${BASE_URL}/api/classrooms`, { headers: getAuthHeaders() });
         return await handleResponse(r);
     }
 
     async function getClassroomStudents(classroomName) {
-        const r = await fetchWithTimeout(`${BASE_URL}/api/classrooms/${encodeURIComponent(classroomName)}`);
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/classrooms/${encodeURIComponent(classroomName)}`,
+            { headers: getAuthHeaders() }
+        );
         return await handleResponse(r);
     }
 
     async function getAttendanceForDate(classroomName, date) {
         const r = await fetchWithTimeout(
-            `${BASE_URL}/api/attendance/${encodeURIComponent(classroomName)}/${date}`
+            `${BASE_URL}/api/attendance/${encodeURIComponent(classroomName)}/${date}`,
+            { headers: getAuthHeaders() }
         );
         return await handleResponse(r);
     }
 
     async function saveAttendance(payload) {
-        const r = await fetchWithTimeout(
-            `${BASE_URL}/api/attendance`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            },
-            60000
-        );
+        const r = await fetchWithTimeout(`${BASE_URL}/api/attendance`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+        }, 60000);
         return await handleResponse(r);
     }
 
+    // ─── NOTAS ────────────────────────────────────────────
     async function getGradeBooks() {
-        const r = await fetchWithTimeout(`${BASE_URL}/api/grades/books`);
+        const r = await fetchWithTimeout(`${BASE_URL}/api/grades/books`, { headers: getAuthHeaders() });
         return await handleResponse(r);
     }
 
     async function getGrades(fileId, sheetName) {
         const r = await fetchWithTimeout(
-            `${BASE_URL}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`
+            `${BASE_URL}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`,
+            { headers: getAuthHeaders() }
         );
         return await handleResponse(r);
     }
@@ -84,19 +162,41 @@ const API = (() => {
     async function saveGrades(fileId, sheetName, updates) {
         const r = await fetchWithTimeout(
             `${BASE_URL}/api/grades/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ updates }),
-            },
+            { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ updates }) },
+            60000
+        );
+        return await handleResponse(r);
+    }
+
+    // ─── ESA ──────────────────────────────────────────────
+    async function getESABooks() {
+        const r = await fetchWithTimeout(`${BASE_URL}/api/esa/books`, { headers: getAuthHeaders() });
+        return await handleResponse(r);
+    }
+
+    async function getESAData(fileId, sheetName) {
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/esa/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}`,
+            { headers: getAuthHeaders() }
+        );
+        return await handleResponse(r);
+    }
+
+    async function generateESA(fileId, sheetName) {
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/esa/${encodeURIComponent(fileId)}/${encodeURIComponent(sheetName)}/generate`,
+            { method: 'POST', headers: getAuthHeaders() },
             60000
         );
         return await handleResponse(r);
     }
 
     return {
+        BASE_URL,
+        login, logout, verifySession, getToken, clearToken,
         checkConnection, getClassrooms, getClassroomStudents,
         getAttendanceForDate, saveAttendance,
-        getGradeBooks, getGrades, saveGrades
+        getGradeBooks, getGrades, saveGrades,
+        getESABooks, getESAData, generateESA
     };
 })();
