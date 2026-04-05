@@ -332,11 +332,14 @@ const Grades = (() => {
                                    font-family:var(--font-body);background:var(--white);">
                     </td>`;
                 } else {
-                    const isAvg = col.key.includes('promedio') || col.key.includes('prom');
-                    const bg = isAvg
-                        ? 'background:var(--teal-soft);color:var(--teal);font-weight:600;'
-                        : 'background:var(--surface);color:var(--ink-muted);';
-                    html += `<td style="text-align:center;font-size:.78rem;padding:4px 3px;min-width:42px;border:1px solid var(--border-light);${bg}">${displayVal || '—'}</td>`;
+                    html += `<td style="padding:2px;text-align:center;">
+                        <input type="number" disabled readonly
+                            value="${displayVal}"
+                            style="width:42px;padding:3px 2px;border:1px solid var(--border-light);
+                                   border-radius:4px;text-align:center;font-size:.78rem;
+                                   font-family:var(--font-body);background:var(--surface);
+                                   color:var(--ink);cursor:default;">
+                    </td>`;
                 }
             });
 
