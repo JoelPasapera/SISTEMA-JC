@@ -239,6 +239,65 @@
                 <p>Cargando notas...</p>
             </div>
         </section>
+
+        <!-- ─── SECCIÓN: ESA ─── -->
+        <section id="section-esa" class="content-section">
+
+            <div class="classroom-selector" id="esa-classroom-selector">
+                <h2 class="selector-title">✍🏼 Evaluación Semanal Académica (ESA)</h2>
+                <div class="classroom-tabs" id="esa-classroom-tabs"></div>
+            </div>
+
+            <div class="date-picker-wrapper" id="esa-sheet-wrapper" style="display:none;">
+                <label class="date-label" for="esa-sheet-select">Semana:</label>
+                <select id="esa-sheet-select" class="date-input" style="min-width:140px;padding:.5rem .75rem;">
+                    <option value="">Seleccionar...</option>
+                </select>
+                <button class="quick-btn" id="btn-generate-esa" style="margin-left:.5rem;" title="Generar ESA desde Notas">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Generar desde Notas
+                </button>
+            </div>
+
+            <!-- Leyenda de colores -->
+            <div id="esa-legend" style="display:none;margin-bottom:1rem;">
+                <div style="display:flex;flex-wrap:wrap;gap:.5rem;font-size:.75rem;">
+                    <span style="padding:.25rem .65rem;border-radius:100px;background:#FFFF00;color:#333;font-weight:500;">B: 4-3 = Amarillo</span>
+                    <span style="padding:.25rem .65rem;border-radius:100px;background:#FF9900;color:#fff;font-weight:500;">B: 2 = Naranja</span>
+                    <span style="padding:.25rem .65rem;border-radius:100px;background:#FF00FF;color:#fff;font-weight:500;">B: 1-0 = Fucsia</span>
+                </div>
+            </div>
+
+            <!-- Tabla ESA -->
+            <div class="attendance-container" id="esa-container" style="display:none;">
+                <div class="table-header">
+                    <div class="table-info">
+                        <h3 class="table-title" id="esa-title"></h3>
+                        <p class="table-subtitle" id="esa-subtitle"></p>
+                    </div>
+                </div>
+                <div class="table-scroll" style="max-height:70vh;overflow:auto;">
+                    <table class="attendance-table" id="esa-table" style="font-size:.8rem;">
+                        <thead id="esa-thead"></thead>
+                        <tbody id="esa-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="empty-state" id="esa-empty" style="display:none;">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                <p>Configura los IDs de archivos ESA en el servidor.</p>
+            </div>
+
+            <div id="esa-loading" style="display:none;text-align:center;padding:3rem;color:var(--ink-muted);">
+                <p>Cargando datos ESA...</p>
+            </div>
+        </section>
+
     </main>
 
     <!-- ═══ MODAL DE CONFIRMACIÓN ═══ -->
