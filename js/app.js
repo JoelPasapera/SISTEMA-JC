@@ -413,6 +413,14 @@ const App = (() => {
                     `${result.summary.late} tardanzas, ${result.summary.absent} faltas`,
                     'success'
                 );
+
+                // Mostrar panel de WhatsApp con links directos
+                if (result.whatsapp && result.whatsapp.total_absent > 0) {
+                    showWhatsAppPanel(result.whatsapp, state.currentClassroom.classroom);
+                } else if (result.whatsapp) {
+                    // Solo mostrar botón de copiar resumen para el grupo
+                    showWhatsAppPanel(result.whatsapp, state.currentClassroom.classroom);
+                }
             } else {
                 showToast('Error al guardar', 'error');
             }
@@ -452,7 +460,88 @@ const App = (() => {
         dom.modalConfirm.onclick = () => { if (typeof onConfirm === 'function') onConfirm(); };
     }
 
-    function closeModal() { dom.modalOverlay.classList.remove('active'); }
+    function showWhatsAppPanel(waData, classroom) {
+        let html = '';
+
+        // ─── Resumen para el grupo ────────────────────────
+        html += `<div style="margin-bottom:1.25rem;">`;
+        html += `<p style="font-weight:600;font-size:.85rem;margin-bottom:.5rem;">📋 Resumen para el grupo</p>`;
+        html += `<div style="background:var(--surface-2);padding:.75rem;border-radius:8px;font-size:.82rem;white-space:pre-line;line-height:1.6;font-family:var(--font-body);" id="wa-summary-text">${escapeHTML(waData.summary_text)}</div>`;
+        html += `<button onclick="
+            navigator.clipboard.writeText(document.getElementById('wa-summary-text').innerText);
+            this.textContent='Copiado ✓';
+            setTimeout(()=>this.textContent='Copiar mensaje',2000);
+        " style="margin-top:.5rem;padding:.4rem .85rem;border:1.5px solid var(--teal);border-radius:6px;background:transparent;color:var(--teal);font-family:var(--font-body);font-size:.78rem;font-weight:500;cursor:pointer;">Copiar mensaje</button>`;
+        html += `</div>`;
+
+        // ─── Links individuales para padres ────────────────
+        if (waData.parent_links && waData.parent_links.length > 0) {
+            html += `<p style="font-weight:600;font-size:.85rem;margin-bottom:.5rem;">📱 Avisos de inasistencia (${waData.total_absent})</p>`;
+
+            if (waData.with_phone > 0) {
+                html += `<p style="font-size:.75rem;color:var(--ink-muted);margin-bottom:.65rem;">Haz clic en cada nombre para abrir WhatsApp con el mensaje listo.</p>`;
+            }
+
+            html += `<div style="display:flex;flex-direction:column;gap:.35rem;">`;
+
+            waData.parent_links.forEach((p, i) => {
+                if (p.has_phone) {
+                    html += `<a href="${p.link}" target="_blank" rel="noopener"
+                        style="display:flex;align-items:center;gap:.65rem;padding:.55rem .85rem;
+                               border-radius:8px;background:#dcf8c6;text-decoration:none;
+                               color:#1a1a2e;font-size:.82rem;transition:background .15s;border:1px solid #b5e4a0;">
+                        <span style="font-size:1.1rem;">💬</span>
+                        <span style="flex:1;">
+                            <strong>${escapeHTML(p.name)}</strong>
+                            <span style="font-size:.72rem;color:#6b6b8d;margin-left:.35rem;">${p.phone_display}</span>
+                        </span>
+                        <span style="font-size:.7rem;color:#25d366;font-weight:600;">Enviar ➜</span>
+                    </a>`;
+                } else {
+                    html += `<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .85rem;
+                               border-radius:8px;background:var(--red-soft);font-size:.82rem;border:1px solid #f5c4b3;">
+                        <span style="font-size:1.1rem;">⚠️</span>
+                        <span><strong>${escapeHTML(p.name)}</strong>
+                        <span style="font-size:.72rem;color:var(--red);">— Sin número de contacto</span></span>
+                    </div>`;
+                }
+            });
+
+            html += `</div>`;
+
+            // Botón para abrir todos
+            if (waData.with_phone > 1) {
+                html += `<button onclick="
+                    const links = document.querySelectorAll('#modal-body a[href*=\\'wa.me\\']');
+                    let i = 0;
+                    function openNext() {
+                        if (i < links.length) { window.open(links[i].href, '_blank'); i++; setTimeout(openNext, 1500); }
+                    }
+                    openNext();
+                    this.textContent='Abriendo...';
+                    this.disabled=true;
+                " style="margin-top:.85rem;padding:.5rem 1rem;border:none;border-radius:8px;
+                         background:#25d366;color:#fff;font-family:var(--font-body);
+                         font-size:.82rem;font-weight:600;cursor:pointer;width:100%;">
+                    Abrir todos (${waData.with_phone} mensajes)
+                </button>`;
+            }
+        } else {
+            html += `<p style="font-size:.82rem;color:var(--green);margin-top:.5rem;">✓ No hubo inasistencias</p>`;
+        }
+
+        showModal('WhatsApp — Notificaciones', html, closeModal);
+
+        // Cambiar botón de confirmar por "Cerrar"
+        dom.modalConfirm.textContent = 'Cerrar';
+        dom.modalCancel.style.display = 'none';
+    }
+
+    function closeModal() {
+        dom.modalOverlay.classList.remove('active');
+        dom.modalCancel.style.display = '';
+        dom.modalConfirm.textContent = 'Confirmar';
+    }
 
     function showToast(message, type = 'info') {
         const toast = document.createElement('div');
