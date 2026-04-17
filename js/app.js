@@ -467,35 +467,35 @@ const App = (() => {
         html += `<div style="margin-bottom:1.25rem;">`;
         html += `<p style="font-weight:600;font-size:.85rem;margin-bottom:.5rem;">📋 Resumen para el grupo</p>`;
         html += `<div style="background:var(--surface-2);padding:.75rem;border-radius:8px;font-size:.82rem;white-space:pre-line;line-height:1.6;font-family:var(--font-body);" id="wa-summary-text">${escapeHTML(waData.summary_text)}</div>`;
-        html += `<button onclick="
-            navigator.clipboard.writeText(document.getElementById('wa-summary-text').innerText);
-            this.textContent='Copiado ✓';
-            setTimeout(()=>this.textContent='Copiar mensaje',2000);
-        " style="margin-top:.5rem;padding:.4rem .85rem;border:1.5px solid var(--teal);border-radius:6px;background:transparent;color:var(--teal);font-family:var(--font-body);font-size:.78rem;font-weight:500;cursor:pointer;">Copiar mensaje</button>`;
-        html += `</div>`;
+        html += `<div style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;">`;
+        html += `<button id="wa-copy-btn" style="padding:.4rem .85rem;border:1.5px solid var(--teal);border-radius:6px;background:transparent;color:var(--teal);font-family:var(--font-body);font-size:.78rem;font-weight:500;cursor:pointer;">Copiar mensaje</button>`;
+        html += `<span id="wa-copy-status" style="font-size:.72rem;color:var(--green);display:none;">✓ Copiado al portapapeles</span>`;
+        html += `</div></div>`;
 
         // ─── Links individuales para padres ────────────────
         if (waData.parent_links && waData.parent_links.length > 0) {
-            html += `<p style="font-weight:600;font-size:.85rem;margin-bottom:.5rem;">📱 Avisos de inasistencia (${waData.total_absent})</p>`;
+            html += `<p style="font-weight:600;font-size:.85rem;margin-bottom:.25rem;">📱 Avisos de inasistencia (${waData.total_absent})</p>`;
 
             if (waData.with_phone > 0) {
-                html += `<p style="font-size:.75rem;color:var(--ink-muted);margin-bottom:.65rem;">Haz clic en cada nombre para abrir WhatsApp con el mensaje listo.</p>`;
+                html += `<div id="wa-auto-status" style="font-size:.78rem;color:var(--teal);margin-bottom:.65rem;padding:.4rem .65rem;background:var(--teal-soft);border-radius:6px;font-weight:500;">
+                    ⏳ Abriendo mensajes automáticamente...
+                </div>`;
             }
 
-            html += `<div style="display:flex;flex-direction:column;gap:.35rem;">`;
+            html += `<div style="display:flex;flex-direction:column;gap:.35rem;" id="wa-links-container">`;
 
             waData.parent_links.forEach((p, i) => {
                 if (p.has_phone) {
-                    html += `<a href="${p.link}" target="_blank" rel="noopener"
+                    html += `<a href="${p.link}" target="_blank" rel="noopener" class="wa-parent-link" data-idx="${i}"
                         style="display:flex;align-items:center;gap:.65rem;padding:.55rem .85rem;
                                border-radius:8px;background:#dcf8c6;text-decoration:none;
-                               color:#1a1a2e;font-size:.82rem;transition:background .15s;border:1px solid #b5e4a0;">
-                        <span style="font-size:1.1rem;">💬</span>
+                               color:#1a1a2e;font-size:.82rem;transition:all .2s;border:1px solid #b5e4a0;">
+                        <span class="wa-link-icon" style="font-size:1.1rem;">💬</span>
                         <span style="flex:1;">
                             <strong>${escapeHTML(p.name)}</strong>
                             <span style="font-size:.72rem;color:#6b6b8d;margin-left:.35rem;">${p.phone_display}</span>
                         </span>
-                        <span style="font-size:.7rem;color:#25d366;font-weight:600;">Enviar ➜</span>
+                        <span class="wa-link-status" style="font-size:.7rem;color:#25d366;font-weight:600;">Pendiente</span>
                     </a>`;
                 } else {
                     html += `<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .85rem;
@@ -509,32 +509,137 @@ const App = (() => {
 
             html += `</div>`;
 
-            // Botón para abrir todos
-            if (waData.with_phone > 1) {
-                html += `<button onclick="
-                    const links = document.querySelectorAll('#modal-body a[href*=\\'wa.me\\']');
-                    let i = 0;
-                    function openNext() {
-                        if (i < links.length) { window.open(links[i].href, '_blank'); i++; setTimeout(openNext, 1500); }
-                    }
-                    openNext();
-                    this.textContent='Abriendo...';
-                    this.disabled=true;
-                " style="margin-top:.85rem;padding:.5rem 1rem;border:none;border-radius:8px;
+            // Botón manual por si el auto-open falla (popups bloqueados)
+            if (waData.with_phone > 0) {
+                html += `<button id="wa-manual-btn" style="display:none;margin-top:.85rem;padding:.5rem 1rem;border:none;border-radius:8px;
                          background:#25d366;color:#fff;font-family:var(--font-body);
                          font-size:.82rem;font-weight:600;cursor:pointer;width:100%;">
-                    Abrir todos (${waData.with_phone} mensajes)
+                    Abrir todos manualmente (${waData.with_phone})
                 </button>`;
             }
         } else {
-            html += `<p style="font-size:.82rem;color:var(--green);margin-top:.5rem;">✓ No hubo inasistencias</p>`;
+            html += `<p style="font-size:.82rem;color:var(--green);margin-top:.5rem;">✓ No hubo inasistencias — asistencia perfecta 🎉</p>`;
         }
 
         showModal('WhatsApp — Notificaciones', html, closeModal);
 
-        // Cambiar botón de confirmar por "Cerrar"
         dom.modalConfirm.textContent = 'Cerrar';
         dom.modalCancel.style.display = 'none';
+
+        // ─── AUTO-ACCIONES ────────────────────────────────
+        // 1) Auto-copiar resumen al portapapeles
+        setTimeout(() => {
+            const summaryEl = document.getElementById('wa-summary-text');
+            const copyBtn = document.getElementById('wa-copy-btn');
+            const copyStatus = document.getElementById('wa-copy-status');
+
+            if (summaryEl) {
+                navigator.clipboard.writeText(summaryEl.innerText).then(() => {
+                    if (copyStatus) {
+                        copyStatus.style.display = 'inline';
+                    }
+                    if (copyBtn) {
+                        copyBtn.textContent = 'Copiado ✓';
+                        copyBtn.style.borderColor = 'var(--green)';
+                        copyBtn.style.color = 'var(--green)';
+                    }
+                }).catch(() => {});
+            }
+
+            // Botón copiar manual por si falla el auto-copy
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(summaryEl.innerText).then(() => {
+                        copyBtn.textContent = 'Copiado ✓';
+                        copyBtn.style.borderColor = 'var(--green)';
+                        copyBtn.style.color = 'var(--green)';
+                        if (copyStatus) copyStatus.style.display = 'inline';
+                    });
+                });
+            }
+        }, 500);
+
+        // 2) Auto-abrir links de padres uno por uno
+        if (waData.with_phone > 0) {
+            const links = [];
+            waData.parent_links.forEach(p => {
+                if (p.has_phone && p.link) links.push(p);
+            });
+
+            let opened = 0;
+            let blocked = false;
+
+            function openNextLink() {
+                if (opened >= links.length) {
+                    // Terminado
+                    const statusEl = document.getElementById('wa-auto-status');
+                    if (statusEl) {
+                        statusEl.textContent = `✓ ${opened} mensajes abiertos en WhatsApp`;
+                        statusEl.style.background = '#dcf8c6';
+                        statusEl.style.color = '#1a7a1a';
+                    }
+                    return;
+                }
+
+                const link = links[opened];
+                const linkEl = document.querySelector(`.wa-parent-link[data-idx="${waData.parent_links.indexOf(link)}"]`);
+
+                // Intentar abrir
+                const win = window.open(link.link, '_blank');
+
+                if (!win || win.closed) {
+                    // Popup bloqueado — parar y mostrar botón manual
+                    blocked = true;
+                    const statusEl = document.getElementById('wa-auto-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = '⚠️ Tu navegador bloqueó las ventanas. Haz clic en cada nombre para enviar, o permite popups para este sitio.';
+                        statusEl.style.background = 'var(--amber-soft)';
+                        statusEl.style.color = 'var(--amber)';
+                    }
+                    const manualBtn = document.getElementById('wa-manual-btn');
+                    if (manualBtn) {
+                        manualBtn.style.display = 'block';
+                        manualBtn.addEventListener('click', () => {
+                            const allLinks = document.querySelectorAll('.wa-parent-link');
+                            let j = 0;
+                            function manualOpen() {
+                                if (j < allLinks.length) {
+                                    window.open(allLinks[j].href, '_blank');
+                                    j++;
+                                    setTimeout(manualOpen, 1500);
+                                }
+                            }
+                            manualOpen();
+                            manualBtn.textContent = 'Abriendo...';
+                            manualBtn.disabled = true;
+                        });
+                    }
+                    return;
+                }
+
+                // Marcar como abierto visualmente
+                if (linkEl) {
+                    const icon = linkEl.querySelector('.wa-link-icon');
+                    const status = linkEl.querySelector('.wa-link-status');
+                    if (icon) icon.textContent = '✅';
+                    if (status) { status.textContent = 'Abierto'; status.style.color = '#1a7a1a'; }
+                    linkEl.style.background = '#f0fff0';
+                    linkEl.style.borderColor = '#a0d8a0';
+                }
+
+                opened++;
+                const statusEl = document.getElementById('wa-auto-status');
+                if (statusEl) {
+                    statusEl.textContent = `⏳ Abriendo ${opened}/${links.length}...`;
+                }
+
+                // Siguiente con delay
+                setTimeout(openNextLink, 1500);
+            }
+
+            // Empezar después de 1.5s (dar tiempo a ver el panel)
+            setTimeout(openNextLink, 1500);
+        }
     }
 
     function closeModal() {
