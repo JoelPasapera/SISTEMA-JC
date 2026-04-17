@@ -162,10 +162,21 @@ const ParentDashboard = (() => {
         const token = params.get('parent_token');
         if (!token) return;
 
-        // Hide everything except dashboard
-        document.querySelectorAll('.header,.section-nav,.main-content,#loading-screen').forEach(el => {
-            if (el) el.style.display = 'none';
+        // Hide absolutely everything: header, nav, all sections, loading, login
+        const hideSelectors = [
+            '.header', '.section-nav', '.main-content',
+            '#loading-screen', '#login-screen',
+            '#section-attendance', '#section-grades',
+            '#section-esa', '#section-parents'
+        ];
+        hideSelectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                if (el) el.style.display = 'none';
+            });
         });
+
+        // Also hide body's direct children that aren't ours
+        document.body.style.background = '#fafaf7';
 
         const container = document.createElement('div');
         container.id = 'parent-dashboard';
@@ -307,12 +318,20 @@ const ParentDashboard = (() => {
 
     function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('parent_token')) {
-            setTimeout(init, 100);
+    // Run as early as possible to avoid flash of login/main content
+    const _params = new URLSearchParams(window.location.search);
+    if (_params.get('parent_token')) {
+        // Immediate hide attempt (before DOM ready)
+        const style = document.createElement('style');
+        style.textContent = '.header,.section-nav,.main-content,#loading-screen,#login-screen{display:none!important;}';
+        document.head.appendChild(style);
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
         }
-    });
+    }
 
     return { init };
 })();
