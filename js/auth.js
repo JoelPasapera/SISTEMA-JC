@@ -8,9 +8,9 @@ const Auth = (() => {
     'use strict';
 
     function init() {
-        // Si hay token de profesor en la URL, no pedir login
+        // If professor token OR parent token in URL, skip login
         const params = new URLSearchParams(window.location.search);
-        if (params.get('token')) {
+        if (params.get('token') || params.get('parent_token')) {
             hideLogin();
             return;
         }
