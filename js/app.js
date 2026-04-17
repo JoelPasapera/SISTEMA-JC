@@ -677,3 +677,8 @@ const App = (() => {
     document.addEventListener('DOMContentLoaded', init);
     return { state, loadData };
 })();
+
+
+/**
+ * APP.JS — Logica de la interfaz de usuario
+ */
