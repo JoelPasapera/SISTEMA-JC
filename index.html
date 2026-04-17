@@ -313,6 +313,41 @@
             </div>
         </section>
 
+        <!-- ─── SECCIÓN: PADRES ─── -->
+        <section id="section-parents" class="content-section">
+            <div class="classroom-selector">
+                <h2 class="selector-title">👨‍👩‍👧‍👦 Portal de Padres</h2>
+                <p style="font-size:.82rem;color:var(--ink-muted);margin-top:.25rem;">
+                    Genera links individuales para que cada padre vea el rendimiento de su hijo(a).
+                </p>
+            </div>
+
+            <!-- Classroom tabs -->
+            <div class="classroom-tabs" id="parents-classroom-tabs"></div>
+
+            <!-- Student list -->
+            <div id="parents-student-list" style="display:none;margin-top:1rem;"></div>
+
+            <!-- Generate tokens button -->
+            <div id="parents-actions" style="display:none;margin-top:1rem;">
+                <button class="save-btn" id="btn-generate-parent-tokens" style="max-width:300px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/>
+                        <path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"/>
+                    </svg>
+                    <span>Generar links para padres</span>
+                </button>
+            </div>
+
+            <div class="empty-state" id="parents-empty" style="display:none;">
+                <p>Carga la sección de Asistencia primero.</p>
+            </div>
+
+            <div id="parents-loading" style="display:none;text-align:center;padding:3rem;color:var(--ink-muted);">
+                <p>Cargando...</p>
+            </div>
+        </section>
+
     </main>
 
     <!-- ═══ MODAL DE CONFIRMACIÓN ═══ -->
