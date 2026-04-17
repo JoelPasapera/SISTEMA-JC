@@ -191,12 +191,22 @@ const API = (() => {
         return await handleResponse(r);
     }
 
+    // ─── PADRES ────────────────────────────────────────────
+    async function getParentDashboard(parentToken) {
+        const r = await fetchWithTimeout(
+            `${BASE_URL}/api/parent/token/${parentToken}`,
+            {}, 30000
+        );
+        return await handleResponse(r);
+    }
+
     return {
         BASE_URL,
         login, logout, verifySession, getToken, clearToken,
         checkConnection, getClassrooms, getClassroomStudents,
         getAttendanceForDate, saveAttendance,
         getGradeBooks, getGrades, saveGrades,
-        getESABooks, getESAData, generateESA
+        getESABooks, getESAData, generateESA,
+        getParentDashboard
     };
 })();
