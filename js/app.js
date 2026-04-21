@@ -19,6 +19,7 @@ const App = (() => {
     function init() {
         cacheDOM();
         setupDate();
+        addRefreshButton();
         bindEvents();
         loadData();
     }
@@ -58,6 +59,33 @@ const App = (() => {
         const f = now.toLocaleDateString('es-PE', opts);
         dom.headerDate.textContent = f.charAt(0).toUpperCase() + f.slice(1);
         dom.dateInput.value = now.toISOString().split('T')[0];
+    }
+
+    function addRefreshButton() {
+        const headerActions = document.querySelector('.header-actions');
+        if (!headerActions) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'btn-refresh';
+        btn.title = 'Sincronizar datos desde Google Drive';
+        btn.style.cssText = 'padding:.35rem .75rem;border:1px solid #d8d5cf;border-radius:6px;background:transparent;font-family:inherit;font-size:.78rem;color:#6b6b8d;cursor:pointer;margin-right:.5rem;display:flex;align-items:center;gap:.35rem;';
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sincronizar';
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin .8s linear infinite"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sincronizando...';
+            try {
+                await API.refreshCache();
+                showToast('Datos sincronizados desde Google Drive', 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sincronizar';
+            }
+        });
+
+        headerActions.insertBefore(btn, headerActions.firstChild);
     }
 
     function bindEvents() {
@@ -677,8 +705,3 @@ const App = (() => {
     document.addEventListener('DOMContentLoaded', init);
     return { state, loadData };
 })();
-
-
-/**
- * APP.JS — Logica de la interfaz de usuario
- */
