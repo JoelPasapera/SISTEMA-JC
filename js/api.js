@@ -200,6 +200,15 @@ const API = (() => {
         return await handleResponse(r);
     }
 
+    // ─── CACHE ─────────────────────────────────────────────
+    async function refreshCache() {
+        const r = await fetchWithTimeout(`${BASE_URL}/api/cache/refresh`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+        }, 15000);
+        return await handleResponse(r);
+    }
+
     return {
         BASE_URL,
         login, logout, verifySession, getToken, clearToken,
@@ -207,6 +216,6 @@ const API = (() => {
         getAttendanceForDate, saveAttendance,
         getGradeBooks, getGrades, saveGrades,
         getESABooks, getESAData, generateESA,
-        getParentDashboard
+        getParentDashboard, refreshCache
     };
 })();
