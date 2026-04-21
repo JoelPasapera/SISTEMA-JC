@@ -242,7 +242,8 @@ const Grades = (() => {
         book.courses.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.sheet_name;
-            opt.textContent = c.course_name;
+            // El dropdown SIEMPRE DEBE DE MOSTRAR el nombre de la hoja de calculo (que es único siempre) en vez del texto de C2.
+            opt.textContent = c.sheet_name;
             dom.courseSelect.appendChild(opt);
         });
 
