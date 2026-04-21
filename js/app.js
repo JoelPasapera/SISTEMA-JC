@@ -197,6 +197,10 @@ const App = (() => {
         dom.tableSubtitle.textContent = `${cr.student_count} estudiantes registrados`;
         dom.attendanceBody.innerHTML = '';
 
+        // Reset attendance records — important when re-rendering after
+        // month change, so stale student entries don't remain.
+        state.attendanceRecords.clear();
+
         cr.students.forEach((student, i) => {
             state.attendanceRecords.set(student.index, {
                 status: 'A',
@@ -280,8 +284,6 @@ const App = (() => {
 
         try {
             const classroomName = state.currentClassroom.classroom;
-            const url = `${classroomName}/${date}`;
-
             const result = await API.getAttendanceForDate(classroomName, date);
 
             if (!result || !result.success) {
@@ -291,7 +293,41 @@ const App = (() => {
 
             const data = result.data;
 
-            // Actualizar título si viene
+            // If the month's sheet has a different student list,
+            // rebuild the table with those students.
+            // This handles cases where students are added/removed between months.
+            if (data.students && Array.isArray(data.students) && data.students.length > 0) {
+                const newStudents = data.students;
+                const currentCount = state.attendanceRecords.length;
+                const newCount = newStudents.length;
+
+                // Detect if the list has actually changed
+                let listChanged = currentCount !== newCount;
+                if (!listChanged && currentCount > 0) {
+                    for (let i = 0; i < newCount; i++) {
+                        if (state.attendanceRecords[i]?.studentName !== newStudents[i].name) {
+                            listChanged = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (listChanged) {
+                    // Update the classroom's student list in state
+                    state.currentClassroom.students = newStudents;
+                    state.currentClassroom.student_count = newCount;
+
+                    // Rebuild the table with the new student list
+                    renderAttendanceTable();
+
+                    showToast(
+                        `Lista actualizada: ${newCount} estudiantes en ${formatDate(date).toUpperCase()}`,
+                        'info'
+                    );
+                }
+            }
+
+            // Update title if provided
             if (data.sheet_title) {
                 dom.tableTitle.textContent = data.sheet_title;
             }
@@ -306,11 +342,9 @@ const App = (() => {
                     const row = document.getElementById(`row-${index}`);
                     if (!row) return;
 
-                    // Buscar el estudiante en los registros del backend
                     const studentName = record.studentName;
                     let existingStatus = records[studentName] || null;
 
-                    // Si no se encontró, intentar búsqueda flexible (ignorar mayúsculas/espacios extra)
                     if (!existingStatus) {
                         const nameLower = studentName.toLowerCase().trim();
                         for (const [key, val] of Object.entries(records)) {
