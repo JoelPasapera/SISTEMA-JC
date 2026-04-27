@@ -59,21 +59,18 @@ const Grades = (() => {
 
     // ─── LOAD WITH PROFESSOR TOKEN ────────────────────────
     async function loadCourseByToken(token) {
-        dom.loading.style.display = 'block';
-
-        const header = document.querySelector('.header');
-        const nav = document.querySelector('.section-nav');
-        const sectionAttendance = document.getElementById('section-attendance');
-        const sectionEsa = document.getElementById('section-esa');
-        const sectionParents = document.getElementById('section-parents');
-        if (header) header.style.display = 'none';
-        if (nav) nav.style.display = 'none';
-        if (sectionAttendance) sectionAttendance.style.display = 'none';
-        if (sectionEsa) sectionEsa.style.display = 'none';
-        if (sectionParents) sectionParents.style.display = 'none';
+        // Ensure grades section is visible and all others hidden
+        document.querySelectorAll('.header, .section-nav, #loading-screen, #login-screen, #section-attendance, #section-esa, #section-parents').forEach(el => {
+            if (el) el.style.display = 'none';
+        });
 
         const sectionGrades = document.getElementById('section-grades');
-        if (sectionGrades) { sectionGrades.classList.add('active'); sectionGrades.style.display = 'block'; }
+        if (sectionGrades) {
+            sectionGrades.classList.add('active');
+            sectionGrades.style.display = 'block';
+        }
+
+        if (dom.loading) dom.loading.style.display = 'block';
 
         try {
             const resp = await fetch(`${API.BASE_URL}/api/course/token/${token}`);
@@ -242,8 +239,7 @@ const Grades = (() => {
         book.courses.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.sheet_name;
-            // El dropdown SIEMPRE DEBE DE MOSTRAR el nombre de la hoja de calculo (que es único siempre) en vez del texto de C2.
-            opt.textContent = c.sheet_name;
+            opt.textContent = c.course_name;
             dom.courseSelect.appendChild(opt);
         });
 
@@ -415,7 +411,13 @@ const Grades = (() => {
         if (s) {
             observer.observe(s, { attributes: true, attributeFilter: ['class'] });
             const params = new URLSearchParams(window.location.search);
-            if (params.get('token')) { const ls = document.getElementById('loading-screen'); if (ls) ls.classList.add('hidden'); initialized = true; init(); }
+            if (params.get('token')) {
+                // Hide loading screen immediately
+                const ls = document.getElementById('loading-screen');
+                if (ls) { ls.style.display = 'none'; ls.classList.add('hidden'); }
+                initialized = true;
+                init();
+            }
         }
     });
 
