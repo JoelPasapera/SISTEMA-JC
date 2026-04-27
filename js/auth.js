@@ -8,14 +8,33 @@ const Auth = (() => {
     'use strict';
 
     function init() {
-        // If professor token OR parent token in URL, skip login
         const params = new URLSearchParams(window.location.search);
-        if (params.get('token') || params.get('parent_token')) {
+
+        // Professor token: inject hide-all CSS immediately to prevent flash
+        if (params.get('token')) {
+            const style = document.createElement('style');
+            style.id = 'professor-token-style';
+            style.textContent = `
+                .header, .section-nav, #loading-screen, #login-screen,
+                #section-attendance, #section-esa, #section-parents {
+                    display: none !important;
+                }
+                #section-grades {
+                    display: block !important;
+                }
+            `;
+            document.head.appendChild(style);
             hideLogin();
             return;
         }
 
-        // Verificar si hay sesión válida
+        // Parent token: skip login entirely (CSS injected by parents.js)
+        if (params.get('parent_token')) {
+            hideLogin();
+            return;
+        }
+
+        // Normal flow: verify session
         checkSession();
     }
 
