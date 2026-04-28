@@ -113,88 +113,235 @@ const Auth = (() => {
         div.id = 'login-screen';
         div.innerHTML = `
         <style>
+            @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap');
+
             #login-screen {
                 position: fixed; inset: 0; z-index: 99999;
-                background: linear-gradient(135deg, #0d7377 0%, #095456 50%, #1a1a2e 100%);
+                background: #FAF6EC;
                 display: flex; align-items: center; justify-content: center;
-                font-family: 'DM Sans', -apple-system, sans-serif;
+                font-family: 'IBM Plex Sans', sans-serif;
+                padding: 2rem 1rem;
+                overflow-y: auto;
             }
+            #login-screen::before {
+                content: '';
+                position: fixed; inset: 0;
+                pointer-events: none;
+                opacity: 0.35;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+            }
+            .login-stage {
+                position: relative;
+                width: 100%; max-width: 400px;
+            }
+            .login-corner {
+                position: absolute;
+                width: 30px; height: 30px;
+                border: 1px solid #1A1814;
+                opacity: 0.4;
+            }
+            .login-corner.tl { top: -8px; left: -8px; border-right: 0; border-bottom: 0; }
+            .login-corner.tr { top: -8px; right: -8px; border-left: 0; border-bottom: 0; }
+            .login-corner.bl { bottom: -8px; left: -8px; border-right: 0; border-top: 0; }
+            .login-corner.br { bottom: -8px; right: -8px; border-left: 0; border-top: 0; }
+
             .login-card {
-                background: #fff; border-radius: 16px;
-                padding: 2.5rem 2rem; width: 90%; max-width: 380px;
-                box-shadow: 0 20px 60px rgba(0,0,0,.3);
+                background: #FAF6EC;
+                border: 1px solid #C7BFA9;
+                padding: 3rem 2.25rem 2.25rem;
+                position: relative;
             }
-            .login-icon {
-                width: 56px; height: 56px; border-radius: 14px;
-                background: #0d7377; margin: 0 auto 1.25rem;
-                display: flex; align-items: center; justify-content: center;
+
+            .login-mark {
+                position: absolute;
+                top: 1rem; left: 50%; transform: translateX(-50%);
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.62rem;
+                color: #9A9285;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+            }
+
+            .login-eyebrow {
+                font-family: 'Fraunces', Georgia, serif;
+                font-style: italic;
+                font-size: 0.8rem;
+                color: #8B2E2E;
+                text-align: center;
+                margin-bottom: 0.4rem;
+                font-weight: 400;
+                letter-spacing: 0.02em;
             }
             .login-title {
-                font-family: 'Instrument Serif', Georgia, serif;
-                font-size: 1.5rem; text-align: center; color: #1a1a2e;
-                margin-bottom: .35rem; font-weight: 400;
+                font-family: 'Fraunces', Georgia, serif;
+                font-size: 2.1rem;
+                text-align: center;
+                color: #1A1814;
+                margin: 0 0 0.4rem;
+                font-weight: 400;
+                line-height: 1;
+                letter-spacing: -0.02em;
+            }
+            .login-title em {
+                font-style: italic;
+                font-weight: 400;
             }
             .login-sub {
-                text-align: center; font-size: .82rem;
-                color: #6b6b8d; margin-bottom: 1.75rem;
+                text-align: center;
+                font-size: 0.78rem;
+                color: #6B6258;
+                margin: 0 0 2rem;
+                font-style: italic;
+                font-family: 'Fraunces', Georgia, serif;
+            }
+            .login-divider {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin: 0 0 1.75rem;
+            }
+            .login-divider::before,
+            .login-divider::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: #C7BFA9;
+            }
+            .login-divider-text {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.6rem;
+                color: #9A9285;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
             }
             .login-field {
                 margin-bottom: 1rem;
             }
             .login-label {
-                display: block; font-size: .78rem; font-weight: 500;
-                color: #3a3a5c; margin-bottom: .35rem;
+                display: block;
+                font-size: 0.7rem;
+                font-weight: 500;
+                color: #6B6258;
+                margin-bottom: 0.4rem;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+                font-family: 'IBM Plex Sans', sans-serif;
             }
             .login-input {
-                width: 100%; padding: .65rem .85rem;
-                border: 1.5px solid #d8d5cf; border-radius: 8px;
-                font-family: 'DM Sans', sans-serif; font-size: .9rem;
-                color: #1a1a2e; outline: none; transition: border-color .2s;
+                width: 100%;
+                padding: 0.7rem 0.85rem;
+                border: 1px solid #C7BFA9;
+                background: #FFFFFF;
+                font-family: 'IBM Plex Sans', sans-serif;
+                font-size: 0.88rem;
+                color: #1A1814;
+                outline: none;
+                transition: all 0.2s ease;
                 box-sizing: border-box;
+                border-radius: 2px;
             }
             .login-input:focus {
-                border-color: #0d7377;
-                box-shadow: 0 0 0 3px rgba(13,115,119,.12);
+                border-color: #1A1814;
+                box-shadow: 0 0 0 3px #EDE6D3;
             }
             .login-btn {
-                width: 100%; padding: .75rem;
-                background: #0d7377; color: #fff; border: none;
-                border-radius: 10px; font-family: 'DM Sans', sans-serif;
-                font-size: .9rem; font-weight: 600; cursor: pointer;
-                transition: all .2s; margin-top: .5rem;
+                width: 100%;
+                padding: 0.85rem;
+                background: #1A1814;
+                color: #FAF6EC;
+                border: 1px solid #1A1814;
+                font-family: 'IBM Plex Sans', sans-serif;
+                font-size: 0.82rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                margin-top: 0.75rem;
+                border-radius: 2px;
+                letter-spacing: 0.04em;
+                position: relative;
+                overflow: hidden;
             }
-            .login-btn:hover { background: #095456; }
-            .login-btn:disabled { opacity: .5; cursor: not-allowed; }
+            .login-btn:hover:not(:disabled) {
+                background: #8B2E2E;
+                border-color: #8B2E2E;
+            }
+            .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
             .login-message {
-                display: none; text-align: center; font-size: .8rem;
-                color: #c0392b; margin-bottom: 1rem;
-                padding: .5rem; background: #fde8e6;
-                border-radius: 6px;
+                display: none;
+                text-align: center;
+                font-size: 0.78rem;
+                color: #8B2E2E;
+                margin-bottom: 1rem;
+                padding: 0.6rem 0.75rem;
+                background: #F4E0DC;
+                border-left: 2px solid #8B2E2E;
+                font-family: 'IBM Plex Sans', sans-serif;
             }
             .login-footer {
-                text-align: center; margin-top: 1.25rem;
-                font-size: .72rem; color: #6b6b8d;
+                text-align: center;
+                margin-top: 1.5rem;
+                font-size: 0.68rem;
+                color: #9A9285;
+                font-family: 'JetBrains Mono', monospace;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+            .login-stamp {
+                position: absolute;
+                bottom: -25px;
+                right: -10px;
+                width: 80px;
+                font-family: 'Fraunces', serif;
+                font-style: italic;
+                font-size: 0.65rem;
+                color: #8B2E2E;
+                opacity: 0.55;
+                transform: rotate(-12deg);
+                text-align: center;
+                line-height: 1.2;
+                pointer-events: none;
+            }
+            .login-stamp .stamp-border {
+                border: 1px solid #8B2E2E;
+                border-radius: 50%;
+                padding: 0.5rem 0.3rem;
             }
         </style>
-        <div class="login-card">
-            <div class="login-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5">
-                    <path d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 017.74-3.342"/>
-                </svg>
+        <div class="login-stage">
+            <div class="login-corner tl"></div>
+            <div class="login-corner tr"></div>
+            <div class="login-corner bl"></div>
+            <div class="login-corner br"></div>
+
+            <div class="login-card">
+                <div class="login-mark">N° 001 — Acceso Privado</div>
+
+                <p class="login-eyebrow">Año académico 2026</p>
+                <h1 class="login-title">Sistema <em>JC</em></h1>
+                <p class="login-sub">Registro académico — sólo personal autorizado</p>
+
+                <div class="login-divider">
+                    <span class="login-divider-text">Iniciar Sesión</span>
+                </div>
+
+                <div class="login-message" id="login-error"></div>
+                <div class="login-field">
+                    <label class="login-label" for="login-user">Usuario</label>
+                    <input class="login-input" type="text" id="login-user" autocomplete="username" placeholder="admin">
+                </div>
+                <div class="login-field">
+                    <label class="login-label" for="login-pass">Contraseña</label>
+                    <input class="login-input" type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••">
+                </div>
+                <button class="login-btn" id="login-btn">Ingresar al sistema</button>
+                <p class="login-footer">Confidencial · MMXXVI</p>
             </div>
-            <h1 class="login-title">Sistema de Registro</h1>
-            <p class="login-sub">Ingresa tus credenciales de administrador</p>
-            <div class="login-message" id="login-error"></div>
-            <div class="login-field">
-                <label class="login-label" for="login-user">Usuario</label>
-                <input class="login-input" type="text" id="login-user" autocomplete="username" placeholder="admin">
+
+            <div class="login-stamp">
+                <div class="stamp-border">
+                    Acceso<br>Restringido
+                </div>
             </div>
-            <div class="login-field">
-                <label class="login-label" for="login-pass">Contraseña</label>
-                <input class="login-input" type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••">
-            </div>
-            <button class="login-btn" id="login-btn">Iniciar Sesión</button>
-            <p class="login-footer">Acceso restringido a personal autorizado</p>
         </div>
         `;
 
