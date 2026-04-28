@@ -17,6 +17,13 @@ const App = (() => {
     const dom = {};
 
     function init() {
+        // Skip full app initialization for isolated token views
+        // (professors and parents have their own isolated UI)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('token') || params.get('parent_token')) {
+            return;
+        }
+
         cacheDOM();
         setupDate();
         addRefreshButton();
