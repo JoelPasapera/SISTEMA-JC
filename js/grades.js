@@ -41,6 +41,7 @@ const Grades = (() => {
         hasChanges: false,
         changes: {},
         professorToken: null,
+        profTokens: [],  // All generated professor tokens
     };
 
     const dom = {};
@@ -75,6 +76,7 @@ const Grades = (() => {
             loadCourseByToken(token);
         } else {
             loadBooks();
+            loadProfessorTokens();  // Load existing tokens for admin view
         }
     }
 
@@ -142,6 +144,119 @@ const Grades = (() => {
         } finally {
             dom.loading.style.display = 'none';
         }
+    }
+
+    // ─── PROFESSOR TOKENS ─────────────────────────────────
+    async function loadProfessorTokens() {
+        try {
+            const resp = await fetch(
+                `${API.BASE_URL}/api/admin/tokens?admin_key=JOELJOTACINO2026`,
+                { headers: { 'Authorization': `Bearer ${API.getToken()}` } }
+            );
+            const ct = resp.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) return;
+            const result = await resp.json();
+            if (result.success && result.tokens) {
+                state.profTokens = result.tokens;
+            }
+        } catch (e) {
+            // Silent fail — tokens are optional
+        }
+    }
+
+    async function generateProfessorTokens() {
+        const btn = document.getElementById('btn-gen-prof-tokens');
+        if (btn) { btn.disabled = true; btn.textContent = 'Generando...'; }
+
+        try {
+            const resp = await fetch(`${API.BASE_URL}/api/admin/generate-tokens`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API.getToken()}` },
+                body: JSON.stringify({
+                    admin_key: 'JOELJOTACINO2026',
+                    frontend_url: 'https://joelpasapera.github.io/SISTEMA-JC'
+                }),
+            });
+            const ct = resp.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                throw new Error('Servidor tardó demasiado. Intenta de nuevo.');
+            }
+            const result = await resp.json();
+            if (result.success) {
+                showToast(`${result.total} tokens de profesor generados`, 'success');
+                await loadProfessorTokens();
+                updateProfLinkButton();
+            } else {
+                showToast(result.error || 'Error', 'error');
+            }
+        } catch (e) {
+            showToast(`Error: ${e.message}`, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Generar tokens'; }
+        }
+    }
+
+    function findProfTokenForCourse(fileId, sheetName) {
+        if (!state.profTokens || !Array.isArray(state.profTokens)) return null;
+        for (const t of state.profTokens) {
+            if (t.file_id === fileId && t.sheet_name === sheetName) return t;
+        }
+        return null;
+    }
+
+    function updateProfLinkButton() {
+        // Remove existing link area
+        const existing = document.getElementById('prof-link-area');
+        if (existing) existing.remove();
+
+        if (!state.currentBook || !state.currentCourse) return;
+
+        const tokenData = findProfTokenForCourse(state.currentBook.file_id, state.currentCourse);
+
+        const area = document.createElement('div');
+        area.id = 'prof-link-area';
+        area.style.cssText = 'display:flex;align-items:center;gap:.5rem;margin-left:.75rem;flex-wrap:wrap;';
+
+        if (tokenData && tokenData.token) {
+            const link = `https://joelpasapera.github.io/SISTEMA-JC/?token=${tokenData.token}&tab=grades`;
+
+            area.innerHTML = `
+                <button id="btn-copy-prof-link" style="display:flex;align-items:center;gap:.35rem;padding:.4rem .75rem;border:1.5px solid var(--teal);border-radius:6px;background:transparent;color:var(--teal);font-family:var(--font-body);font-size:.75rem;font-weight:500;cursor:pointer;transition:all .2s;" title="Copiar link de acceso del profesor para este curso">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Link del profesor
+                </button>
+            `;
+
+            const btn = area.querySelector('#btn-copy-prof-link');
+            btn.addEventListener('click', () => {
+                navigator.clipboard.writeText(link).then(() => {
+                    btn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                        Copiado
+                    `;
+                    btn.style.borderColor = '#059669';
+                    btn.style.color = '#059669';
+                    setTimeout(() => {
+                        btn.innerHTML = `
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            Link del profesor
+                        `;
+                        btn.style.borderColor = 'var(--teal)';
+                        btn.style.color = 'var(--teal)';
+                    }, 2000);
+                });
+            });
+        } else {
+            area.innerHTML = `
+                <button id="btn-gen-prof-tokens" style="display:flex;align-items:center;gap:.35rem;padding:.4rem .75rem;border:1.5px dashed #d8d5cf;border-radius:6px;background:transparent;color:var(--ink-muted);font-family:var(--font-body);font-size:.75rem;cursor:pointer;" title="Generar tokens de acceso para profesores">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+                    Generar tokens
+                </button>
+            `;
+            area.querySelector('#btn-gen-prof-tokens').addEventListener('click', generateProfessorTokens);
+        }
+
+        dom.courseWrapper.appendChild(area);
     }
 
     // ─── LOAD ALL BOOKS BY BIMESTER ───────────────────────
@@ -293,6 +408,11 @@ const Grades = (() => {
                 renderGradesTable();
                 dom.container.style.display = 'block';
                 dom.btnSave.disabled = true;
+
+                // Show professor link button (admin view only)
+                if (!state.professorToken) {
+                    updateProfLinkButton();
+                }
             } else {
                 showToast(result.error || 'Error', 'error');
             }
