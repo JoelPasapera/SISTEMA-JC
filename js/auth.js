@@ -88,6 +88,17 @@ const Auth = (() => {
         const loginScreen = document.getElementById('login-screen');
         if (loginScreen) loginScreen.style.display = 'none';
 
+        // If professor or parent token is in URL, DON'T show header/nav
+        // — the token-specific CSS handles visibility.
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('token') || params.get('parent_token')) {
+            // Only show main-content so the section JS can render into it
+            const main = document.querySelector('.main-content');
+            if (main) main.style.display = '';
+            return;
+        }
+
+        // Normal admin login — show everything
         const header = document.querySelector('.header');
         const nav = document.querySelector('.section-nav');
         const main = document.querySelector('.main-content');
