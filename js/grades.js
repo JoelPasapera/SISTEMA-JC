@@ -2,11 +2,32 @@
  * GRADES.JS — Module de Notas organizado por Bimestres.
  *
  * Structure:
- *   [Primer Bimestre ▼] [Segundo Bimestre] [Tercer Bimestre] [Cuarto Bimestre]
+ *   [Primer Bimestre] [Segundo Bimestre] [Tercer Bimestre] [Cuarto Bimestre]
  *     → Tabs: Salon 2D | Salon 2E
  *       → Dropdown: Álgebra, Aritmética, etc.
  *         → Table with grades
+ *
+ * Also handles professor token access (?token=XXX):
+ *   Shows ONLY the course table, no header/nav/other sections.
  */
+
+// ── PROFESSOR TOKEN: Immediate CSS injection ──────────────
+// Runs synchronously when script is parsed, BEFORE DOMContentLoaded.
+// This prevents any flash of the admin interface when a professor
+// opens their dedicated link.
+(function() {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('token')) {
+        var s = document.createElement('style');
+        s.id = 'professor-isolate-css';
+        s.textContent =
+            '.header,.section-nav,#loading-screen,#login-screen,' +
+            '#section-attendance,#section-esa,#section-parents,' +
+            '.header-actions{display:none!important;}' +
+            '.main-content,#section-grades{display:block!important;}';
+        (document.head || document.documentElement).appendChild(s);
+    }
+})();
 
 const Grades = (() => {
     'use strict';
