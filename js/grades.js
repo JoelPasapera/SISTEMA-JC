@@ -15,6 +15,8 @@
 // Runs synchronously when script is parsed, BEFORE DOMContentLoaded.
 // This prevents any flash of the admin interface when a professor
 // opens their dedicated link.
+
+
 (function() {
     const p = new URLSearchParams(window.location.search);
     if (p.get('token')) {
@@ -147,6 +149,22 @@ const Grades = (() => {
     }
 
     // ─── PROFESSOR TOKENS ─────────────────────────────────
+    // Professor tokens allow individual course access links.
+    //
+    // Backend structure (from /api/admin/tokens):
+    //   { "courses": { "fileId|sheetName": { token, file_id, sheet_name, ... } } }
+    // This is a DICT keyed by "fileId|sheetName".
+    //
+    // We convert it to an array for easy iteration in the frontend.
+    // state.profTokens = [ { token, file_id, sheet_name, course_name, ... }, ... ]
+    //
+    // Flow:
+    //   1. Admin loads Notas section → loadProfessorTokens() fetches existing tokens
+    //   2. Admin selects a course → updateProfLinkButton() shows copy/generate button
+    //   3. If no tokens exist → "Generar tokens" button calls generateProfessorTokens()
+    //   4. After generation → tokens are reloaded and button updates to "Link del profesor"
+    //   5. Clicking "Link del profesor" copies the URL to clipboard
+
     async function loadProfessorTokens() {
         try {
             const resp = await fetch(
@@ -156,11 +174,14 @@ const Grades = (() => {
             const ct = resp.headers.get('content-type') || '';
             if (!ct.includes('application/json')) return;
             const result = await resp.json();
+
             if (result.success && result.tokens) {
-                state.profTokens = result.tokens;
+                // Backend returns a dict { "key": {data} } — convert to array
+                const tokensObj = result.tokens;
+                state.profTokens = Object.values(tokensObj);
             }
         } catch (e) {
-            // Silent fail — tokens are optional
+            // Silent fail — professor token display is optional for admin
         }
     }
 
@@ -184,7 +205,11 @@ const Grades = (() => {
             const result = await resp.json();
             if (result.success) {
                 showToast(`${result.total} tokens de profesor generados`, 'success');
+
+                // Reload tokens from backend (source of truth)
                 await loadProfessorTokens();
+
+                // Update the button to show "Copy link" instead of "Generate"
                 updateProfLinkButton();
             } else {
                 showToast(result.error || 'Error', 'error');
@@ -196,14 +221,34 @@ const Grades = (() => {
         }
     }
 
+    /**
+     * Search for the professor token matching a specific course.
+     * @param {string} fileId — Google Drive file ID of the grades Excel
+     * @param {string} sheetName — Sheet name within the Excel (e.g., "Álgebra")
+     * @returns {object|null} Token data with {token, file_id, sheet_name, ...} or null
+     */
     function findProfTokenForCourse(fileId, sheetName) {
-        if (!state.profTokens || !Array.isArray(state.profTokens)) return null;
+        if (!state.profTokens || !Array.isArray(state.profTokens) || state.profTokens.length === 0) {
+            return null;
+        }
         for (const t of state.profTokens) {
-            if (t.file_id === fileId && t.sheet_name === sheetName) return t;
+            if (t.file_id === fileId && t.sheet_name === sheetName) {
+                return t;
+            }
         }
         return null;
     }
 
+    /**
+     * Show/update the professor link button next to the course dropdown.
+     *
+     * Two states:
+     *   A) Token EXISTS for this course → show "Link del profesor" (copies URL on click)
+     *   B) Token MISSING → show "Generar tokens" (generates all tokens on click)
+     *
+     * The button is injected into dom.courseWrapper dynamically.
+     * Called after: course selection change, token generation.
+     */
     function updateProfLinkButton() {
         // Remove existing link area
         const existing = document.getElementById('prof-link-area');
